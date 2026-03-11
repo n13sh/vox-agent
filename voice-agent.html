@@ -384,10 +384,58 @@
             display: none;
             z-index: 1000;
         }
+
+        /* Native Canvas Background */
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        /* Nav Controls */
+        .app-nav {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 150;
+        }
+
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(10, 22, 40, 0.7);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .nav-btn:hover {
+            background: var(--gold);
+            color: var(--navy);
+            transform: scale(1.1);
+        }
     </style>
 </head>
 
 <body>
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="app-nav">
+        <button class="nav-btn" onclick="window.history.back()" title="Go Back">◀</button>
+        <button class="nav-btn" onclick="window.history.forward()" title="Go Forward">▶</button>
+    </div>
 
     <header class="header">
         <h1 class="logo-text">SANTAMONICA <span>STUDY ABROAD</span></h1>
@@ -398,7 +446,7 @@
         <div class="input-group" style="display: none;">
             <label for="apiKey">ElevenLabs API Key</label>
             <input type="password" id="apiKey" placeholder="Enter your API Key"
-                value="sk_515cd33aa27c368a98b71df6df9624249ee161e5a8edce2c">
+                value="8f0c236b58aebe5adf385614f97a00c8020ccc56139338ab4af5a176987906c6">
         </div>
         <div class="input-group">
             <label for="agentId">Agent ID</label>
@@ -469,6 +517,7 @@
         let isPlaying = false;
         let inactivityTimer = null;
         let reconnectAttempted = false;
+        let currentAudioSource = null;
 
         // UI Helpers
         function showError(msg) {
@@ -549,6 +598,13 @@
                         addMessage(msg.speaker, msg.text);
                     } else if (msg.type === 'agent_response') {
                         // Optional handling
+                    } else if (msg.type === 'clear') {
+                        audioQueue = [];
+                        if (currentAudioSource) {
+                            try { currentAudioSource.stop(); } catch(e) {}
+                            currentAudioSource = null;
+                        }
+                        isPlaying = false;
                     } else if (msg.type === 'ping') {
                         socket.send(JSON.stringify({ type: 'pong' }));
                     }
@@ -576,7 +632,13 @@
         async function initMic() {
             try {
                 micStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { sampleRate: 16000, channelCount: 1 }
+                    audio: { 
+                        sampleRate: 16000, 
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
                 });
 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
@@ -657,9 +719,13 @@
             audioBuf.getChannelData(0).set(float32);
 
             const source = audioContext.createBufferSource();
+            currentAudioSource = source;
             source.buffer = audioBuf;
             source.connect(audioContext.destination);
-            source.onended = playNext;
+            source.onended = () => {
+                currentAudioSource = null;
+                playNext();
+            };
             source.start();
         }
 
@@ -697,6 +763,62 @@
                 setTimeout(() => { COPY_BTN.innerText = originalText; }, 2000);
             });
         });
+
+        // --- Canvas Particle Background ---
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, particles;
+
+        function initCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            particles = [];
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.5)'; // Gold particles
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.15)'; // Gold lines
+
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > width) p.vx *= -1;
+                if (p.y < 0 || p.y > height) p.vy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                for (let j = index + 1; j < particles.length; j++) {
+                    const p2 = particles[j];
+                    const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                    if (dist < 180) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.globalAlpha = 1 - (dist / 180);
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                    }
+                }
+            });
+            requestAnimationFrame(drawParticles);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+        drawParticles();
 
     </script>
 </body>
