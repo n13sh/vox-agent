@@ -48,7 +48,7 @@
         }
 
         .logo-text {
-            font-size: 2rem;
+            font-size: 2.8rem;
             font-weight: 700;
             color: var(--white);
             letter-spacing: 1px;
@@ -395,47 +395,11 @@
             z-index: -2;
             pointer-events: none;
         }
-
-        /* Nav Controls */
-        .app-nav {
-            position: fixed;
-            top: 1.5rem;
-            left: 1.5rem;
-            display: flex;
-            gap: 0.5rem;
-            z-index: 150;
-        }
-
-        .nav-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(10, 22, 40, 0.7);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            color: var(--gold);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-            backdrop-filter: blur(5px);
-        }
-
-        .nav-btn:hover {
-            background: var(--gold);
-            color: var(--navy);
-            transform: scale(1.1);
-        }
     </style>
 </head>
 
 <body>
     <canvas id="bgCanvas"></canvas>
-
-    <div class="app-nav">
-        <button class="nav-btn" onclick="window.history.back()" title="Go Back">◀</button>
-        <button class="nav-btn" onclick="window.history.forward()" title="Go Forward">▶</button>
-    </div>
 
     <header class="header">
         <h1 class="logo-text">SANTAMONICA <span>STUDY ABROAD</span></h1>
@@ -747,7 +711,11 @@
             END_BTN.style.display = 'none';
             COPY_BTN.style.display = 'block';
             START_BTN.disabled = false;
-            START_BTN.innerText = 'Restart Session';
+            START_BTN.innerText = 'Start Session';
+            
+            // Re-show config and clear transcript
+            document.getElementById('settings').style.display = 'block';
+            TRANSCRIPT.innerHTML = '';
         }
 
         END_BTN.addEventListener('click', endSession);
