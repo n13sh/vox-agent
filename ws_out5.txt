@@ -1,0 +1,16 @@
+﻿EVENT: conversation_initiation_metadata
+AUDIO EVENT: dict_keys(['audio_event', 'type'])
+audio_event inner: dict_keys(['audio_base_64', 'event_id', 'alignment'])
+AUDIO EVENT: dict_keys(['audio_event', 'type'])
+audio_event inner: dict_keys(['audio_base_64', 'event_id', 'alignment'])
+AUDIO EVENT: dict_keys(['audio_event', 'type'])
+audio_event inner: dict_keys(['audio_base_64', 'event_id'])
+AUDIO EVENT: dict_keys(['audio_event', 'type'])
+audio_event inner: dict_keys(['audio_base_64', 'event_id'])
+AUDIO EVENT: dict_keys(['audio_event', 'type'])
+audio_event inner: dict_keys(['audio_base_64', 'event_id'])
+AUDIO EVENT: dict_keys(['audio_event', 'type'])
+audio_event inner: dict_keys(['audio_base_64', 'event_id', 'alignment'])
+EVENT: agent_response
+EVENT: ping
+EVENT: ping

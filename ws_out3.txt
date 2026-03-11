@@ -1,0 +1,48 @@
+﻿Getting signed URL...
+Connecting to ws...
+Connected!
+RECV1: {"conversation_initiation_metadata_event":{"conversation_id":"conv_0601kkdqk9jtesesvs1htw7c0eaz","agent_output_audio_format":"pcm_16000","user_input_audio_format":"pcm_16000"},"type":"conversation_ini
+Sent user_audio_chunk
+RECV: {"audio_event":{"audio_base_64":"sv9+/5P/hv+V/5H/k/+S/5X/kv+Y/5r/pP+p/6r/tP+3/7r/uP+6/7//xP/M/9L/1f/b/97/5P/q/+7/9f/+/wIABQAJAAkACgAJAAYAAgABAAMAAgACAP///P///wYACgAOABIAJQAoAC0APABCAEsATwBVAFMAWgBcAFs
+RECV: {"audio_event":{"audio_base_64":"yuaNFEwmC0bcM1or3BgsDwoTgAar9XTpqfIk3hbXM8Zd0DrjCvjZDqkVJhb0H7EodxwYD7QBUgJM/qz0xOgu3vzcO+vv9/D/QwgxFCQeBR2uFdUKAwemBkwHxP+a837vFe366dHnaOs/9gEC3Az+EhcVLhZSG+sa1BV2DGk
+RECV: {"audio_event":{"audio_base_64":"BxPk6rUVzez8Dxf1WwVx//r7awgS9TUO2u7qEkDsRROl790KQvpO//wFz/RtDRDvNhBu7VcRTfBuCof3+wNF/xj8igjs8fwPSfDiDlLzEQrg92kFqv6D/pUE4PvwBe/43gbz++MDnPsdBs36DAYB/NkELvwGBO7+lv9CA87
+RECV: {"audio_event":{"audio_base_64":"nwCcAJ8AqACkAKgApwCnAKgArQCvALAArACtAKwAsACzAK0AswCtAKkAowCjAKEAoACeAJgAnACYAJwAmwCfAJ4AoAChAJoAmwCUAJQAkgCMAIkAigCGAIYAhACBAIEAfgB4AHcAeQB1AHkAeQByAHMAdgBuAHEAbQBfAFk
+RECV: {"audio_event":{"audio_base_64":"ggCEAH0AfAB9AHkAfQCBAHwAgQB/AHoAfgB6AH8AegCBAIAAfgCIAIcAhgCDAIQAgQCCAH0AeAB4AHcAeAByAG4AbQBoAGsAbABmAGUAYQBfAGQAYgBeAF0AWQBUAE0ATABIAEMAPwA8AD4ANwA6ADkANQA3ADgAOAA0ADI
+RECV: {"audio_event":{"audio_base_64":"iQgECN8HowcKB2oFiwPpAZwAOP+w/Qv8Pfq/+Cz3Q/b99b32zveL+Kn4r/iv+Q37JPwc/BH8qfyQ/rAADAJ8AuICxwNWBdQGigeqB60HHggvCRsK/QmBCd0I3wjFCEwIrwb1BP0CjwEaAAj+APwq+hX55fcK9/31n/au99L
+RECV: {"agent_response_event":{"agent_response":"Hi there! Welcome to Santamonica Study Abroad. I'm your virtual counsellor. Are you looking to study abroad or need help with test preparation like IELTS or 
+RECV: {"ping_event":{"event_id":2,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":3,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":4,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":5,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":6,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":7,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":8,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":9,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":10,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":11,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":12,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":13,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":14,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":15,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":16,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":17,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":18,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":19,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":20,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":21,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":22,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":23,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":24,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":25,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":26,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":27,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":28,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":29,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":30,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":31,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":32,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":33,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":34,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":35,"ping_ms":null},"type":"ping"}
+RECV: {"ping_event":{"event_id":36,"ping_ms":null},"type":"ping"}
+Finished: received 1002 (protocol error) No user message received for a long period of time - probably a network error occurred.; then sent 1002 (protocol error) No user message received for a long period of time - probably a network error occurred.

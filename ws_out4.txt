@@ -1,0 +1,2 @@
+﻿EVENT TYPE: conversation_initiation_metadata
+Finished: 

@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOX | Universal AI Voice Interface</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --accent: #00f2ff;
+            --accent-glow: rgba(0, 242, 255, 0.4);
+            --secondary: #ff00ea;
+            --secondary-glow: rgba(255, 0, 234, 0.4);
+            --text-main: #ffffff;
+            --text-dim: #a0a0a0;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+
+            body.light-mode {
+                --bg: #ffffff;
+                --accent: #0044cc;
+                --accent-glow: rgba(0, 68, 204, 0.1);
+                --secondary: #8a2be2;
+                --secondary-glow: rgba(138, 43, 226, 0.1);
+                --text-main: #111111;
+                --text-dim: #555555;
+                --glass: rgba(200, 200, 200, 0.3);
+                --glass-border: rgba(0, 0, 0, 0.2);
+                --danger: #cc0000;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Inter', sans-serif;
+            }
+
+            h1,
+            h2,
+            h3,
+            .vox-logo {
+                font-family: 'Space Grotesk', sans-serif;
+            }
+
+            body {
+                background-color: var(--bg);
+                color: var(--text-main);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                position: relative;
+            }
+
+            /* Animated Background */
+            .bg-glow {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: -1;
+                background:
+                    radial-gradient(circle at 20% 30%, var(--accent-glow) 0%, transparent 40%),
+                    radial-gradient(circle at 80% 70%, var(--secondary-glow) 0%, transparent 40%);
+                filter: blur(80px);
+                animation: bg-move 20s infinite alternate ease-in-out;
+            }
+
+            @keyframes bg-move {
+                0% {
+                    transform: scale(1);
+                }
+
+                100% {
+                    transform: scale(1.2) translate(5%, 5%);
+                }
+            }
+
+            /* Header */
+            header {
+                padding: 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                backdrop-filter: blur(10px);
+                z-index: 10;
+            }
+
+            .vox-logo {
+                font-size: 2.5rem;
+                font-weight: 800;
+                letter-spacing: -2px;
+                background: linear-gradient(to right, var(--accent), var(--secondary));
+                background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                position: relative;
+            }
+
+            .vox-logo::after {
+                content: 'UNIVERSAL';
+                position: absolute;
+                bottom: -10px;
+                left: 0;
+                font-size: 0.6rem;
+                letter-spacing: 4px;
+                -webkit-text-fill-color: var(--text-dim);
+            }
+
+            /* Main Config Panel */
+            .config-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.8);
+                backdrop-filter: blur(20px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                transition: opacity 0.5s, visibility 0.5s;
+            }
+
+            .config-overlay.hidden {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+
+            .config-card {
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                padding: 3rem;
+                border-radius: 24px;
+                width: 100%;
+                max-width: 500px;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            }
+
+            .config-card h2 {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+                text-align: center;
+            }
+
+            .input-box {
+                margin-bottom: 1.5rem;
+            }
+
+            .input-box label {
+                display: block;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                color: var(--text-dim);
+                margin-bottom: 0.5rem;
+            }
+
+            .input-box input {
+                width: 100%;
+                padding: 1rem;
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: 12px;
+                color: var(--text-main);
+                font-size: 1rem;
+                outline: none;
+                transition: 0.3s;
+            }
+
+            .input-box input:focus {
+                border-color: var(--accent);
+                background: rgba(128, 128, 128, 0.1);
+            }
+
+            .btn-launch {
+                width: 100%;
+                padding: 1.2rem;
+                background: linear-gradient(45deg, var(--accent), var(--secondary));
+                border: none;
+                border-radius: 12px;
+                color: white;
+                font-weight: 700;
+                font-size: 1.1rem;
+                cursor: pointer;
+                transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                margin-top: 1rem;
+            }
+
+            .btn-launch:hover {
+                transform: translateY(-5px) scale(1.02);
+                box-shadow: 0 10px 30px var(--accent-glow);
+            }
+
+            /* Interface Content */
+            .workspace {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 0 2rem 2rem 2rem;
+                height: calc(100vh - 120px);
+            }
+
+            /* Core Interaction Area */
+            .interaction-zone {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+            }
+
+            .orb-container {
+                position: relative;
+                width: 300px;
+                height: 300px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .orb {
+                width: 180px;
+                height: 180px;
+                background: var(--glass);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                border: 2px solid var(--glass-border);
+                z-index: 5;
+                transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: 0 0 50px rgba(255, 255, 255, 0.05);
+            }
+
+            .orb svg {
+                width: 60px;
+                height: 60px;
+                fill: var(--text-main);
+                transition: 0.3s;
+            }
+
+            /* Visual States */
+            .orb.listening {
+                border-color: var(--accent);
+                box-shadow: 0 0 50px var(--accent-glow);
+            }
+
+            .orb.speaking {
+                border-color: var(--secondary);
+                box-shadow: 0 0 60px var(--secondary-glow);
+                transform: scale(1.1);
+            }
+
+            /* Pulse Rings */
+            .pulse-ring {
+                position: absolute;
+                border: 2px solid var(--accent);
+                border-radius: 50%;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .listening .pulse-ring {
+                animation: orb-pulse 2s infinite;
+            }
+
+            @keyframes orb-pulse {
+                0% {
+                    width: 180px;
+                    height: 180px;
+                    opacity: 1;
+                }
+
+                100% {
+                    width: 400px;
+                    height: 400px;
+                    opacity: 0;
+                }
+            }
+
+            .vox-status {
+                margin-top: 3rem;
+                font-size: 1.5rem;
+                font-weight: 300;
+                letter-spacing: 5px;
+                text-transform: uppercase;
+                color: var(--text-dim);
+            }
+
+            .status-dot {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                background: var(--text-dim);
+                border-radius: 50%;
+                margin-right: 10px;
+            }
+
+            .active-dot {
+                background: var(--accent);
+                box-shadow: 0 0 10px var(--accent);
+            }
+
+            /* Sidebar - Transcript */
+            .sidebar {
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: 24px;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                backdrop-filter: blur(10px);
+            }
+
+            .sidebar-header {
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--glass-border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .sidebar-header h3 {
+                font-size: 0.9rem;
+                letter-spacing: 2px;
+                color: var(--text-dim);
+            }
+
+            .transcript-feed {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .msg-bubble {
+                max-width: 90%;
+                padding: 1rem;
+                border-radius: 16px;
+                font-size: 0.95rem;
+                line-height: 1.5;
+                position: relative;
+            }
+
+            .msg-agent {
+                align-self: flex-start;
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid var(--glass-border);
+                border-bottom-left-radius: 4px;
+            }
+
+            .msg-user {
+                align-self: flex-end;
+                background: linear-gradient(135deg, rgba(0, 242, 255, 0.1), rgba(255, 0, 234, 0.1));
+                border: 1px solid rgba(0, 242, 255, 0.2);
+                border-bottom-right-radius: 4px;
+                color: var(--accent);
+            }
+
+            .msg-speaker {
+                font-size: 0.65rem;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 0.4rem;
+                display: block;
+                opacity: 0.5;
+            }
+
+            /* Controls Area */
+            .vox-controls {
+                padding: 1.5rem;
+                border-top: 1px solid var(--glass-border);
+                display: flex;
+                gap: 1rem;
+            }
+
+            .ctrl-btn {
+                flex: 1;
+                padding: 0.8rem;
+                border-radius: 12px;
+                border: 1px solid var(--glass-border);
+                background: transparent;
+                color: white;
+                cursor: pointer;
+                transition: 0.3s;
+                font-size: 0.8rem;
+                font-weight: 600;
+            }
+
+            .btn-stop {
+                color: var(--danger);
+                border-color: rgba(255, 77, 77, 0.3);
+            }
+
+            .btn-stop:hover {
+                background: rgba(255, 77, 77, 0.1);
+            }
+
+            .btn-copy:hover {
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            /* Audio Waveform */
+            .visualizer {
+                display: flex;
+                align-items: center;
+                gap: 3px;
+                height: 30px;
+            }
+
+            .bar {
+                width: 3px;
+                height: 100%;
+                background: var(--accent);
+                border-radius: 2px;
+                transition: height 0.1s ease;
+            }
+
+            /* Mobile Adjustments */
+            @media (max-width: 900px) {
+                .workspace {
+                    height: auto;
+                    padding-bottom: 5rem;
+                }
+
+                .vox-logo {
+                    font-size: 1.8rem;
+                }
+            }
+
+            /* Scrollbar */
+            ::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            ::-webkit-scrollbar-thumb {
+                background: var(--glass-border);
+                border-radius: 10px;
+            }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-glow"></div>
+
+    <header>
+        <div class="vox-logo" id="headerTitle">VOX</div>
+        <div id="visualizer" class="visualizer" style="opacity: 0;">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <div>
+            <button class="ctrl-btn" id="themeToggleBtn"
+                style="flex: initial; width: auto; padding: 0.5rem 1rem; margin-right: 10px;">☀</button>
+            <button class="ctrl-btn" id="reconfigureBtn"
+                style="flex: initial; width: auto; padding: 0.5rem 1rem;">CONFIG</button>
+        </div>
+    </header>
+
+    <div id="configOverlay" class="config-overlay">
+        <div class="config-card">
+            <h2>INITIALIZE VOX</h2>
+            <div class="input-box">
+                <label>Assistant Title</label>
+                <input type="text" id="agentTitle" placeholder="e.g. Sales Assistant">
+            </div>
+            <div class="input-box">
+                <label>ElevenLabs API Key</label>
+                <input type="password" id="apiKey" placeholder="sk_...">
+            </div>
+            <div class="input-box">
+                <label>Agent ID</label>
+                <input type="text" id="agentId" placeholder="agent_...">
+            </div>
+            <button id="launchBtn" class="btn-launch">SYSTEM START</button>
+            <p
+                style="font-size: 0.7rem; color: var(--text-dim); text-align: center; margin-top: 1.5rem; letter-spacing: 1px;">
+                DIRECT CLIENT-SIDE SECURE HANDSHAKE</p>
+        </div>
+    </div>
+
+    <main class="workspace">
+        <section class="interaction-zone">
+            <div class="orb-container" id="orbContainer">
+                <div class="pulse-ring"></div>
+                <div class="pulse-ring" style="animation-delay: 0.5s"></div>
+                <div class="pulse-ring" style="animation-delay: 1s"></div>
+                <div id="orb" class="orb">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                        <path
+                            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="vox-status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">STANDBY</span>
+            </div>
+            <div class="vox-controls" id="sessionControls"
+                style="display: none; margin-top: 2rem; width: 100%; max-width: 300px;">
+                <button id="endBtn" class="ctrl-btn btn-stop" style="width: 100%;">TERMINATE SESSION</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_KEY_INPUT = document.getElementById('apiKey');
+        const AGENT_ID_INPUT = document.getElementById('agentId');
+        const AGENT_TITLE_INPUT = document.getElementById('agentTitle');
+        const LAUNCH_BTN = document.getElementById('launchBtn');
+        const CONFIG_OVERLAY = document.getElementById('configOverlay');
+        const RECONFIG_BTN = document.getElementById('reconfigureBtn');
+        const THEME_TOGGLE_BTN = document.getElementById('themeToggleBtn');
+        const HEADER_TITLE = document.getElementById('headerTitle');
+
+        const ORB = document.getElementById('orb');
+        const ORB_CONTAINER = document.getElementById('orbContainer');
+        const STATUS_TEXT = document.getElementById('statusText');
+        const STATUS_DOT = document.getElementById('statusDot');
+        const SESSION_CONTROLS = document.getElementById('sessionControls');
+        const END_BTN = document.getElementById('endBtn');
+        const VISUALIZER = document.getElementById('visualizer');
+
+        let socket = null;
+        let audioContext = null;
+        let scriptProcessor = null;
+        let micStream = null;
+        let audioQueue = [];
+        let isPlaying = false;
+        let conversationStarted = false;
+
+        // Auto-fill from URL
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('agentId')) AGENT_ID_INPUT.value = params.get('agentId');
+        if (params.has('apiKey')) API_KEY_INPUT.value = params.get('apiKey');
+        if (params.has('title')) AGENT_TITLE_INPUT.value = params.get('title');
+
+        // UI State Handlers
+        function setState(state) {
+            ORB.className = 'orb';
+            STATUS_DOT.className = 'status-dot';
+            VISUALIZER.style.opacity = '0';
+
+            switch (state) {
+                case 'READY':
+                    STATUS_TEXT.innerText = 'INITIALIZED';
+                    STATUS_DOT.classList.add('active-dot');
+                    break;
+                case 'CONNECTING':
+                    STATUS_TEXT.innerText = 'SYNCING...';
+                    break;
+                case 'LISTENING':
+                    STATUS_TEXT.innerText = 'LISTENING';
+                    ORB.classList.add('listening');
+                    ORB_CONTAINER.classList.add('listening');
+                    STATUS_DOT.classList.add('active-dot');
+                    break;
+                case 'SPEAKING':
+                    STATUS_TEXT.innerText = 'VOX SPEAKING';
+                    ORB.classList.add('speaking');
+                    STATUS_DOT.classList.add('active-dot');
+                    VISUALIZER.style.opacity = '1';
+                    animateVisualizer();
+                    break;
+                case 'ERROR':
+                    STATUS_TEXT.innerText = 'SYSTEM FAILURE';
+                    STATUS_DOT.style.background = 'var(--danger)';
+                    break;
+                default:
+                    STATUS_TEXT.innerText = 'STANDBY';
+            }
+        }
+
+        THEME_TOGGLE_BTN.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            if (document.body.classList.contains('light-mode')) {
+                THEME_TOGGLE_BTN.innerText = '☾';
+            } else {
+                THEME_TOGGLE_BTN.innerText = '☀';
+            }
+        });
+
+        function animateVisualizer() {
+            if (!isPlaying) return;
+            const bars = VISUALIZER.querySelectorAll('.bar');
+            bars.forEach(bar => {
+                const h = Math.random() * 100;
+                bar.style.height = `${h}%`;
+            });
+            setTimeout(animateVisualizer, 100);
+        }
+
+        // Session Logic
+        LAUNCH_BTN.addEventListener('click', async () => {
+            const apiKey = API_KEY_INPUT.value.trim();
+            const agentId = AGENT_ID_INPUT.value.trim();
+            const agentTitle = AGENT_TITLE_INPUT.value.trim() || 'VOX';
+
+            if (!apiKey || !agentId) return alert('API Key and Agent ID required.');
+
+            try {
+                LAUNCH_BTN.innerText = 'ESTABLISHING...';
+                const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`, {
+                    method: 'GET',
+                    headers: { 'xi-api-key': apiKey }
+                });
+
+                if (!response.ok) throw new Error('AUTH_FAILED');
+
+                const data = await response.json();
+                CONFIG_OVERLAY.classList.add('hidden');
+                SESSION_CONTROLS.style.display = 'flex';
+                HEADER_TITLE.innerText = agentTitle;
+                document.title = `${agentTitle} | Universal AI Voice Interface`;
+                startWebSocket(data.signed_url);
+            } catch (err) {
+                alert('Authentication failed. Check your credentials.');
+                LAUNCH_BTN.innerText = 'SYSTEM START';
+            }
+        });
+
+        RECONFIG_BTN.addEventListener('click', () => {
+            CONFIG_OVERLAY.classList.remove('hidden');
+            LAUNCH_BTN.innerText = 'SYSTEM START';
+        });
+
+        function startWebSocket(url) {
+            socket = new WebSocket(url);
+            setState('CONNECTING');
+
+            socket.onopen = () => {
+                initMic();
+                setState('READY');
+            };
+
+            socket.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'audio' && msg.audio_event && msg.audio_event.audio_base_64) {
+                    queueAudio(msg.audio_event.audio_base_64);
+                }
+                else if (msg.type === 'ping') {
+                    if (msg.ping_event && msg.ping_event.event_id) {
+                        socket.send(JSON.stringify({ type: 'pong', event_id: msg.ping_event.event_id }));
+                    } else {
+                        socket.send(JSON.stringify({ type: 'pong' }));
+                    }
+                }
+            };
+
+            socket.onclose = () => { terminate(); };
+            socket.onerror = () => { setState('ERROR'); };
+        }
+
+        async function initMic() {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(micStream);
+                scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                scriptProcessor.onaudioprocess = (e) => {
+                    if (!socket || socket.readyState !== WebSocket.OPEN || isPlaying) return;
+                    const input = e.inputBuffer.getChannelData(0);
+                    const pcm = convertFloat32ToInt16(input);
+                    socket.send(JSON.stringify({ user_audio_chunk: b64encode(pcm) }));
+                };
+
+                source.connect(scriptProcessor);
+                scriptProcessor.connect(audioContext.destination);
+                setState('LISTENING');
+                conversationStarted = true;
+            } catch (err) {
+                alert('Microphone access denied.');
+                terminate();
+            }
+        }
+
+        function convertFloat32ToInt16(buffer) {
+            let l = buffer.length;
+            let buf = new Int16Array(l);
+            while (l--) buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
+            return buf.buffer;
+        }
+
+        function b64encode(buf) {
+            let binary = '';
+            let bytes = new Uint8Array(buf);
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+        }
+
+        function queueAudio(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            audioQueue.push(bytes.buffer);
+            if (!isPlaying) playNext();
+        }
+
+        async function playNext() {
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                setState('LISTENING');
+                return;
+            }
+
+            isPlaying = true;
+            setState('SPEAKING');
+
+            const buffer = audioQueue.shift();
+            const int16 = new Int16Array(buffer);
+            const float32 = new Float32Array(int16.length);
+            for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+
+            const audioBuf = audioContext.createBuffer(1, float32.length, 16000);
+            audioBuf.getChannelData(0).set(float32);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuf;
+            source.connect(audioContext.destination);
+            source.onended = playNext;
+            source.start();
+        }
+
+        function terminate() {
+            conversationStarted = false;
+            if (socket) socket.close();
+            if (micStream) micStream.getTracks().forEach(t => t.stop());
+            if (audioContext) audioContext.close();
+            setState('IDLE');
+            VISUALIZER.style.opacity = '0';
+        }
+
+        END_BTN.addEventListener('click', terminate);
+
+    </script>
+</body>
+
+</html>
