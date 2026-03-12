@@ -655,7 +655,7 @@
             LAUNCH_BTN.innerText = 'ESTABLISHING...';
 
             try {
-                // Get signed URL (keeps our API key client-side only for signing)
+                // Get signed URL (keeps our API key safe)
                 const res = await fetch(
                     `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
                     { headers: { 'xi-api-key': apiKey } }
@@ -663,23 +663,50 @@
                 if (!res.ok) throw new Error('AUTH_FAILED');
                 const { signed_url } = await res.json();
 
-                // Update UI state
+                // Update UI
                 HEADER_TITLE.innerText = agentTitle;
                 document.title = `${agentTitle} | AI Voice Agent`;
                 CONFIG_OVERLAY.classList.add('hidden');
                 WIDGET_WRAP.style.display = 'flex';
 
-                // Hand off to the ElevenLabs widget — it handles EVERYTHING:
-                // mic, audio playback, VAD, barge-in, and interruption.
-                // This IS the same code that powers the ElevenLabs preview.
+                // CRITICAL: must set agent-id so the widget fetches its config/appearance.
+                // Without this, the widget's config is null and it renders nothing.
+                EL_WIDGET.setAttribute('agent-id', agentId);
+                // signed-url drives the actual WebSocket conversation (with barge-in intact)
                 EL_WIDGET.setAttribute('signed-url', signed_url);
+                // Style widget orb to match VOX theme
+                EL_WIDGET.setAttribute('avatar-orb-color-1', '#00F2FF');
+                EL_WIDGET.setAttribute('avatar-orb-color-2', '#bf00ff');
+
+                // Auto-click the widget's "Start a call" button so the user
+                // doesn't need an extra tap after SYSTEM START
+                autoStartWidget();
 
             } catch (err) {
                 console.error(err);
                 alert('Failed to connect. Check API key and Agent ID.');
+                CONFIG_OVERLAY.classList.remove('hidden');
                 LAUNCH_BTN.innerText = 'SYSTEM START';
             }
         });
+
+        // Poll for the widget's start button and click it automatically
+        function autoStartWidget() {
+            let attempts = 0;
+            const poll = setInterval(() => {
+                attempts++;
+                // Widget renders a button; its label contains 'Start' or 'call'
+                const btn = EL_WIDGET.querySelector('button');
+                if (btn) {
+                    clearInterval(poll);
+                    btn.click();
+                } else if (attempts > 40) { // 4s timeout — let user click manually
+                    clearInterval(poll);
+                    console.log('[VOX] Widget button not found — user can tap to start');
+                }
+            }, 100);
+        }
+
 
         RECONFIG_BTN.addEventListener('click', () => {
             CONFIG_OVERLAY.classList.remove('hidden');
