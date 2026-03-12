@@ -3,8 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOX | Universal AI Voice Interface</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="VOX">
+    <meta name="theme-color" content="#050505">
+    <title>VOX | AI Voice Agent</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;600&display=swap"
         rel="stylesheet">
@@ -38,6 +42,8 @@
                 padding: 0;
                 box-sizing: border-box;
                 font-family: 'Inter', sans-serif;
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
             }
 
             h1,
@@ -51,10 +57,15 @@
                 background-color: var(--bg);
                 color: var(--text-main);
                 min-height: 100vh;
+                min-height: -webkit-fill-available;
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
                 position: relative;
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
             }
 
             /* Native Canvas Background */
@@ -126,33 +137,37 @@
 
             /* Header */
             header {
-                padding: 2rem;
+                padding: 1.25rem 1.5rem;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 backdrop-filter: blur(10px);
                 z-index: 10;
+                flex-shrink: 0;
             }
 
             .vox-logo {
-                font-size: 3.5rem;
+                font-size: clamp(1.8rem, 6vw, 3rem);
                 font-weight: 800;
-                letter-spacing: -2px;
+                letter-spacing: -1px;
                 background: linear-gradient(to right, var(--accent), var(--secondary));
                 background-clip: text;
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 position: relative;
+                line-height: 1.1;
+                padding-bottom: 12px;
             }
 
             .vox-logo::after {
-                content: 'UNIVERSAL';
+                content: 'VOICE AGENT';
                 position: absolute;
-                bottom: -8px;
+                bottom: -2px;
                 left: 2px;
-                font-size: 0.8rem;
-                letter-spacing: 4px;
+                font-size: 0.55rem;
+                letter-spacing: 3px;
                 -webkit-text-fill-color: var(--text-dim);
+                white-space: nowrap;
             }
 
             /* Main Config Panel */
@@ -210,9 +225,11 @@
                 border: 1px solid var(--glass-border);
                 border-radius: 12px;
                 color: var(--text-main);
-                font-size: 1rem;
+                font-size: 16px; /* prevents iOS auto-zoom on focus */
                 outline: none;
                 transition: 0.3s;
+                -webkit-appearance: none;
+                appearance: none;
             }
 
             .input-box input:focus {
@@ -246,8 +263,9 @@
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                padding: 0 2rem 2rem 2rem;
-                height: calc(100vh - 120px);
+                padding: 0 1.5rem 2rem 1.5rem;
+                height: calc(100dvh - 80px);
+                touch-action: none;
             }
 
             /* Core Interaction Area */
@@ -470,14 +488,41 @@
             }
 
             /* Mobile Adjustments */
-            @media (max-width: 900px) {
-                .workspace {
-                    height: auto;
-                    padding-bottom: 5rem;
+            @media (max-width: 768px) {
+                .orb-container {
+                    width: 240px;
+                    height: 240px;
                 }
-
-                .vox-logo {
-                    font-size: 1.8rem;
+                .orb {
+                    width: 150px;
+                    height: 150px;
+                    /* Bigger tap target for fingers */
+                    min-width: 44px;
+                    min-height: 44px;
+                }
+                .vox-status {
+                    font-size: 1rem;
+                    letter-spacing: 3px;
+                    margin-top: 2rem;
+                }
+                .config-card {
+                    padding: 2rem 1.5rem;
+                    border-radius: 20px;
+                    margin: 1rem;
+                }
+                .ctrl-btn {
+                    padding: 1rem;
+                    min-height: 44px;
+                }
+                header {
+                    padding: 1rem 1.25rem;
+                }
+            }
+            /* Pulse ring scaling for smaller orb */
+            @media (max-width: 768px) {
+                @keyframes orb-pulse {
+                    0% { width: 150px; height: 150px; opacity: 1; }
+                    100% { width: 320px; height: 320px; opacity: 0; }
                 }
             }
             }
@@ -663,6 +708,14 @@
 
             if (!apiKey || !agentId) return alert('API Key and Agent ID required.');
 
+            // Create AudioContext here — must be inside a direct user gesture for iOS Safari
+            if (!audioContext || audioContext.state === 'closed') {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            }
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
             try {
                 LAUNCH_BTN.innerText = 'ESTABLISHING...';
                 const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`, {
@@ -676,8 +729,7 @@
                 CONFIG_OVERLAY.classList.add('hidden');
                 SESSION_CONTROLS.style.display = 'flex';
                 HEADER_TITLE.innerText = agentTitle;
-                HEADER_TITLE.style.fontSize = "3.5rem";
-                document.title = `${agentTitle} | Universal AI Voice Interface`;
+                document.title = `${agentTitle} | AI Voice Agent`;
                 startWebSocket(data.signed_url);
             } catch (err) {
                 alert('Authentication failed. Check your credentials.');
@@ -704,13 +756,15 @@
                 if (msg.type === 'audio' && msg.audio_event && msg.audio_event.audio_base_64) {
                     queueAudio(msg.audio_event.audio_base_64);
                 }
-                else if (msg.type === 'clear') {
+                else if (msg.type === 'interruption' || msg.type === 'clear') {
+                    // User interrupted the agent — stop all queued audio immediately
                     audioQueue = [];
                     if (currentAudioSource) {
                         try { currentAudioSource.stop(); } catch(e) {}
                         currentAudioSource = null;
                     }
                     isPlaying = false;
+                    setState('LISTENING');
                 }
                 else if (msg.type === 'ping') {
                     if (msg.ping_event && msg.ping_event.event_id) {
@@ -736,7 +790,7 @@
                         autoGainControl: true
                     } 
                 });
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                // audioContext already created on user gesture in LAUNCH_BTN click
                 const source = audioContext.createMediaStreamSource(micStream);
                 scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
@@ -810,12 +864,22 @@
 
         function terminate() {
             conversationStarted = false;
-            if (socket) socket.close();
+            if (socket) { try { socket.close(); } catch(e) {} socket = null; }
             if (micStream) micStream.getTracks().forEach(t => t.stop());
-            if (audioContext) audioContext.close();
+            if (audioContext) { try { audioContext.close(); } catch(e) {} audioContext = null; }
+            if (scriptProcessor) { try { scriptProcessor.disconnect(); } catch(e) {} scriptProcessor = null; }
+            audioQueue = [];
+            if (currentAudioSource) { try { currentAudioSource.stop(); } catch(e) {} currentAudioSource = null; }
+            isPlaying = false;
             setState('IDLE');
             VISUALIZER.style.opacity = '0';
-            
+
+            // Clear agent-specific fields so the user can switch agents easily
+            AGENT_ID_INPUT.value = '';
+            AGENT_TITLE_INPUT.value = '';
+            HEADER_TITLE.innerText = 'VOX';
+            document.title = 'VOX | Universal AI Voice Interface';
+
             // Re-show config overlay
             SESSION_CONTROLS.style.display = 'none';
             CONFIG_OVERLAY.classList.remove('hidden');
