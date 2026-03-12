@@ -708,6 +708,44 @@
         });
 
         // ── ElevenLabs SDK Session ──────────────────────────────────────────────
+        let inputVolumeInterval = null;
+        // Volume threshold: 0 = silence, 1 = loud. 0.1 = user clearly speaking.
+        const INPUT_VOL_THRESHOLD = 0.1;
+
+        function startInputVolumeWatch() {
+            if (inputVolumeInterval) return;
+            let isSpeakingMode = false;
+
+            inputVolumeInterval = setInterval(() => {
+                if (!conversation) return;
+                // getInputVolume() returns 0–1. Poll the mic level every 33ms.
+                const vol = conversation.getInputVolume?.() ?? 0;
+
+                if (vol > INPUT_VOL_THRESHOLD && isSpeakingMode) {
+                    // User is speaking while agent is talking — force interrupt NOW.
+                    console.log('[VOL] Interrupt — input volume:', vol.toFixed(2));
+                    // Silence agent output immediately; SDK will catch up with onModeChange.
+                    try { conversation.setVolume({ volume: 0 }); } catch(e) {}
+                    // Restore volume after a short delay so the next agent response is audible.
+                    setTimeout(() => {
+                        try { if (conversation) conversation.setVolume({ volume: 1 }); } catch(e) {}
+                    }, 800);
+                    isSpeakingMode = false; // prevent re-triggering until next speaking phase
+                }
+
+                // Track current mode from speaking state
+                if (document.getElementById('orb')?.classList.contains('speaking')) {
+                    isSpeakingMode = true;
+                } else {
+                    isSpeakingMode = false;
+                }
+            }, 33);
+        }
+
+        function stopInputVolumeWatch() {
+            if (inputVolumeInterval) { clearInterval(inputVolumeInterval); inputVolumeInterval = null; }
+        }
+
         LAUNCH_BTN.addEventListener('click', async () => {
             const apiKey     = API_KEY_INPUT.value.trim();
             const agentId    = AGENT_ID_INPUT.value.trim();
@@ -734,7 +772,10 @@
                 conversation = await Conversation.startSession({
                     signedUrl: signed_url,
 
-                    onConnect: () => setState('LISTENING'),
+                    onConnect: () => {
+                        setState('LISTENING');
+                        startInputVolumeWatch(); // begin monitoring mic volume
+                    },
 
                     onDisconnect: () => terminate(false),
 
@@ -743,9 +784,7 @@
                         setState('ERROR');
                     },
 
-                    // onModeChange is ElevenLabs' built-in barge-in signal.
-                    // When the user speaks during agent speech the SDK handles
-                    // interruption internally and fires mode => 'listening'.
+                    // SDK's native barge-in: fires when ElevenLabs detects user speech
                     onModeChange: ({ mode }) => {
                         if (mode === 'speaking') setState('SPEAKING');
                         else setState('LISTENING');
@@ -767,6 +806,7 @@
 
         async function terminate(endSdk = true) {
             if (vizInterval) { clearInterval(vizInterval); vizInterval = null; }
+            stopInputVolumeWatch();
             if (conversation && endSdk) {
                 try { await conversation.endSession(); } catch(e) {}
             }
