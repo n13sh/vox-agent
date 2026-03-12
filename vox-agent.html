@@ -288,10 +288,29 @@
                 width: 100%;
                 height: 100%;
                 position: relative;
+                flex: 1; /* Take up all available space to ensure centering */
+            }
+
+            .widget-frame {
+                background: var(--glass);
+                border: 1px solid var(--glass-border);
+                border-radius: 50%;
+                padding: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 0 80px var(--accent-glow);
+                backdrop-filter: blur(10px);
+                transition: transform 0.3s ease;
+            }
+
+            .widget-frame:hover {
+                transform: scale(1.02);
             }
 
             elevenlabs-convai {
                 margin: 0 auto;
+                z-index: 5;
             }
 
 
@@ -513,11 +532,13 @@
     </div>
 
     <main class="workspace">
-        <section class="interaction-zone" style="width: 100%; height: 100%;">
+        <section class="interaction-zone" style="width: 100%; height: 100%; flex: 1;">
             <div id="widgetContainer" class="widget-centered-container">
-                <elevenlabs-convai id="elWidget" variant="full"></elevenlabs-convai>
-                <div id="sessionControls" style="margin-top:2rem; width:100%; max-width:300px;">
-                    <button id="endBtn" class="ctrl-btn btn-stop" style="width:100%;">TERMINATE SESSION</button>
+                <div class="widget-frame">
+                    <elevenlabs-convai id="elWidget" variant="full"></elevenlabs-convai>
+                </div>
+                <div id="sessionControls" style="margin-top:2.5rem; width:100%; max-width:300px;">
+                    <button id="endBtn" class="ctrl-btn btn-stop" style="width:100%; letter-spacing: 2px;">TERMINATE SESSION</button>
                 </div>
             </div>
         </section>
@@ -588,19 +609,28 @@
             }
         });
 
-        // Poll for the widget button and click it
+        // Poll for the widget button and click it to ensure mic is ACTIVE
         function autoStartWidget() {
             let attempts = 0;
             const poll = setInterval(() => {
                 attempts++;
-                const btn = EL_WIDGET.shadowRoot ? EL_WIDGET.shadowRoot.querySelector('button') : EL_WIDGET.querySelector('button');
+                
+                // The ElevenLabs widget is a Web Component that likely uses Shadow DOM
+                const btn = EL_WIDGET.shadowRoot 
+                    ? EL_WIDGET.shadowRoot.querySelector('button') 
+                    : EL_WIDGET.querySelector('button');
+
                 if (btn) {
                     clearInterval(poll);
-                    btn.click();
-                    console.log('[VOX] Session auto-started');
-                } else if (attempts > 50) {
+                    console.log('[VOX] Start button found, activating session...');
+                    // Use a slight timeout to ensure widget is ready for click
+                    setTimeout(() => {
+                        btn.click();
+                        console.log('[VOX] Session auto-started (Mic active)');
+                    }, 200);
+                } else if (attempts > 60) {
                     clearInterval(poll);
-                    console.log('[VOX] Could not find start button - please start manually');
+                    console.log('[VOX] Start button not found after 6s - please start manually');
                 }
             }, 100);
         }
