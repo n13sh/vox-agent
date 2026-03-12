@@ -279,117 +279,21 @@
                 position: relative;
             }
 
-            .orb-container {
+            /* ElevenLabs Widget Container */
+            .widget-centered-container {
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 100%;
                 position: relative;
-                width: 300px;
-                height: 300px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
             }
 
-            .orb {
-                width: 180px;
-                height: 180px;
-                background: var(--glass);
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                border: 2px solid var(--glass-border);
-                z-index: 5;
-                transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                box-shadow: 0 0 50px rgba(255, 255, 255, 0.05);
+            elevenlabs-convai {
+                margin: 0 auto;
             }
 
-            .orb svg {
-                width: 60px;
-                height: 60px;
-                fill: var(--text-main);
-                transition: 0.3s;
-            }
-
-            /* Visual States */
-            .orb.listening {
-                border-color: var(--accent);
-                box-shadow: 0 0 50px var(--accent-glow);
-            }
-
-            .orb.speaking {
-                border-color: var(--secondary);
-                box-shadow: 0 0 60px var(--secondary-glow);
-                transform: scale(1.1);
-            }
-
-            /* Tap to interrupt hint shown below orb during SPEAKING */
-            .interrupt-hint {
-                position: absolute;
-                bottom: -2.5rem;
-                left: 50%;
-                transform: translateX(-50%);
-                font-size: 0.65rem;
-                letter-spacing: 2px;
-                color: var(--secondary);
-                opacity: 0;
-                transition: opacity 0.3s;
-                white-space: nowrap;
-                pointer-events: none;
-                text-transform: uppercase;
-            }
-            .orb-container.speaking-active .interrupt-hint {
-                opacity: 1;
-            }
-
-            /* Pulse Rings */
-            .pulse-ring {
-                position: absolute;
-                border: 2px solid var(--accent);
-                border-radius: 50%;
-                opacity: 0;
-                pointer-events: none;
-            }
-
-            .listening .pulse-ring {
-                animation: orb-pulse 2s infinite;
-            }
-
-            @keyframes orb-pulse {
-                0% {
-                    width: 180px;
-                    height: 180px;
-                    opacity: 1;
-                }
-
-                100% {
-                    width: 400px;
-                    height: 400px;
-                    opacity: 0;
-                }
-            }
-
-            .vox-status {
-                margin-top: 3rem;
-                font-size: 1.5rem;
-                font-weight: 300;
-                letter-spacing: 5px;
-                text-transform: uppercase;
-                color: var(--text-dim);
-            }
-
-            .status-dot {
-                display: inline-block;
-                width: 8px;
-                height: 8px;
-                background: var(--text-dim);
-                border-radius: 50%;
-                margin-right: 10px;
-            }
-
-            .active-dot {
-                background: var(--accent);
-                box-shadow: 0 0 10px var(--accent);
-            }
 
             /* Sidebar - Transcript */
             .sidebar {
@@ -609,13 +513,12 @@
     </div>
 
     <main class="workspace">
-        <section class="interaction-zone">
-            <!-- ElevenLabs widget IS the conversation engine.
-                 All audio, mic, VAD, barge-in and interruption are handled inside it.
-                 We set signed-url via JS after the user clicks SYSTEM START. -->
-            <div id="widgetWrap" style="display:none; flex-direction:column; align-items:center; gap:1.5rem; width:100%;">
+        <section class="interaction-zone" style="width: 100%; height: 100%;">
+            <div id="widgetContainer" class="widget-centered-container">
                 <elevenlabs-convai id="elWidget" variant="full"></elevenlabs-convai>
-                <button id="endBtn" class="ctrl-btn btn-stop" style="margin-top:0.5rem;">TERMINATE SESSION</button>
+                <div id="sessionControls" style="margin-top:2rem; width:100%; max-width:300px;">
+                    <button id="endBtn" class="ctrl-btn btn-stop" style="width:100%;">TERMINATE SESSION</button>
+                </div>
             </div>
         </section>
     </main>
@@ -629,11 +532,10 @@
         const RECONFIG_BTN     = document.getElementById('reconfigureBtn');
         const THEME_TOGGLE_BTN = document.getElementById('themeToggleBtn');
         const HEADER_TITLE     = document.getElementById('headerTitle');
-        const WIDGET_WRAP      = document.getElementById('widgetWrap');
+        const WIDGET_CONTAINER = document.getElementById('widgetContainer');
         const EL_WIDGET        = document.getElementById('elWidget');
         const END_BTN          = document.getElementById('endBtn');
 
-        // Auto-fill from URL params
         const params = new URLSearchParams(window.location.search);
         if (params.has('agentId')) AGENT_ID_INPUT.value = params.get('agentId');
         if (params.has('apiKey'))  API_KEY_INPUT.value  = params.get('apiKey');
@@ -655,7 +557,7 @@
             LAUNCH_BTN.innerText = 'ESTABLISHING...';
 
             try {
-                // Get signed URL (keeps our API key safe)
+                // Get signed URL
                 const res = await fetch(
                     `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
                     { headers: { 'xi-api-key': apiKey } }
@@ -667,46 +569,41 @@
                 HEADER_TITLE.innerText = agentTitle;
                 document.title = `${agentTitle} | AI Voice Agent`;
                 CONFIG_OVERLAY.classList.add('hidden');
-                WIDGET_WRAP.style.display = 'flex';
+                WIDGET_CONTAINER.style.display = 'flex';
 
-                // CRITICAL: must set agent-id so the widget fetches its config/appearance.
-                // Without this, the widget's config is null and it renders nothing.
+                // Set attributes on the widget
                 EL_WIDGET.setAttribute('agent-id', agentId);
-                // signed-url drives the actual WebSocket conversation (with barge-in intact)
                 EL_WIDGET.setAttribute('signed-url', signed_url);
-                // Style widget orb to match VOX theme
                 EL_WIDGET.setAttribute('avatar-orb-color-1', '#00F2FF');
                 EL_WIDGET.setAttribute('avatar-orb-color-2', '#bf00ff');
 
-                // Auto-click the widget's "Start a call" button so the user
-                // doesn't need an extra tap after SYSTEM START
+                // Auto-click the widget's start button
                 autoStartWidget();
 
             } catch (err) {
                 console.error(err);
-                alert('Failed to connect. Check API key and Agent ID.');
+                alert('Failed to connect. Check credentials.');
                 CONFIG_OVERLAY.classList.remove('hidden');
                 LAUNCH_BTN.innerText = 'SYSTEM START';
             }
         });
 
-        // Poll for the widget's start button and click it automatically
+        // Poll for the widget button and click it
         function autoStartWidget() {
             let attempts = 0;
             const poll = setInterval(() => {
                 attempts++;
-                // Widget renders a button; its label contains 'Start' or 'call'
-                const btn = EL_WIDGET.querySelector('button');
+                const btn = EL_WIDGET.shadowRoot ? EL_WIDGET.shadowRoot.querySelector('button') : EL_WIDGET.querySelector('button');
                 if (btn) {
                     clearInterval(poll);
                     btn.click();
-                } else if (attempts > 40) { // 4s timeout — let user click manually
+                    console.log('[VOX] Session auto-started');
+                } else if (attempts > 50) {
                     clearInterval(poll);
-                    console.log('[VOX] Widget button not found — user can tap to start');
+                    console.log('[VOX] Could not find start button - please start manually');
                 }
             }, 100);
         }
-
 
         RECONFIG_BTN.addEventListener('click', () => {
             CONFIG_OVERLAY.classList.remove('hidden');
@@ -714,16 +611,13 @@
         });
 
         END_BTN.addEventListener('click', () => {
-            // Remove signed-url so the widget resets
             EL_WIDGET.removeAttribute('signed-url');
             EL_WIDGET.removeAttribute('agent-id');
-            WIDGET_WRAP.style.display = 'none';
-            AGENT_ID_INPUT.value    = '';
-            AGENT_TITLE_INPUT.value = '';
-            HEADER_TITLE.innerText  = 'VOX';
-            document.title = 'VOX | AI Voice Agent';
+            WIDGET_CONTAINER.style.display = 'none';
             CONFIG_OVERLAY.classList.remove('hidden');
             LAUNCH_BTN.innerText = 'SYSTEM START';
+            HEADER_TITLE.innerText = 'VOX';
+            document.title = 'VOX | AI Voice Agent';
         });
 
         // ── Canvas Particle Background ──────────────────────────────────────────
@@ -734,30 +628,30 @@
         function initCanvas() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
-            particles = [];
-            for (let i = 0; i < 60; i++) {
-                particles.push({
-                    x: Math.random() * width,  y: Math.random() * height,
-                    vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
-                    radius: Math.random() * 2 + 1
-                });
-            }
+            particles = Array.from({ length: 60 }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                radius: Math.random() * 2 + 1
+            }));
         }
 
         function drawParticles() {
             ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle   = document.body.classList.contains('light-mode') ? 'rgba(0,34,204,0.8)'  : 'rgba(0,242,255,0.5)';
-            ctx.strokeStyle = document.body.classList.contains('light-mode') ? 'rgba(0,34,204,0.25)' : 'rgba(0,242,255,0.1)';
+            const dark = !document.body.classList.contains('light-mode');
+            ctx.fillStyle   = dark ? 'rgba(0,242,255,.5)'  : 'rgba(0,34,204,.8)';
+            ctx.strokeStyle = dark ? 'rgba(0,242,255,.1)'  : 'rgba(0,34,204,.25)';
             particles.forEach((p, i) => {
                 p.x += p.vx; p.y += p.vy;
                 if (p.x < 0 || p.x > width)  p.vx *= -1;
                 if (p.y < 0 || p.y > height) p.vy *= -1;
-                ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
-                for (let j = i + 1; j < particles.length; j++) {
-                    const q = particles[j], d = Math.hypot(p.x - q.x, p.y - q.y);
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
+                for (let j = i+1; j < particles.length; j++) {
+                    const q = particles[j], d = Math.hypot(p.x-q.x, p.y-q.y);
                     if (d < 150) {
-                        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
-                        ctx.globalAlpha = 1 - d / 150; ctx.stroke(); ctx.globalAlpha = 1;
+                        ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y);
+                        ctx.globalAlpha = 1-d/150; ctx.stroke(); ctx.globalAlpha = 1;
                     }
                 }
             });
@@ -769,5 +663,4 @@
         drawParticles();
     </script>
 </body>
-
 </html>
