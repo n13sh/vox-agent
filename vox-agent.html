@@ -12,6 +12,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;600&display=swap"
         rel="stylesheet">
+    <!-- ElevenLabs official convai widget — handles all audio, VAD, and interruption natively -->
+    <script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
     <style>
         :root {
             --bg: #050505;
@@ -608,33 +610,17 @@
 
     <main class="workspace">
         <section class="interaction-zone">
-            <div class="orb-container" id="orbContainer">
-                <div class="pulse-ring"></div>
-                <div class="pulse-ring" style="animation-delay: 0.5s"></div>
-                <div class="pulse-ring" style="animation-delay: 1s"></div>
-                <div id="orb" class="orb">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                        <path
-                            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-                    </svg>
-                </div>
-                <span class="interrupt-hint">TAP TO INTERRUPT</span>
-            </div>
-            <div class="vox-status">
-                <span class="status-dot" id="statusDot"></span>
-                <span id="statusText">STANDBY</span>
-            </div>
-            <div class="vox-controls" id="sessionControls"
-                style="display: none; margin-top: 2rem; width: 100%; max-width: 300px;">
-                <button id="endBtn" class="ctrl-btn btn-stop" style="width: 100%;">TERMINATE SESSION</button>
+            <!-- ElevenLabs widget IS the conversation engine.
+                 All audio, mic, VAD, barge-in and interruption are handled inside it.
+                 We set signed-url via JS after the user clicks SYSTEM START. -->
+            <div id="widgetWrap" style="display:none; flex-direction:column; align-items:center; gap:1.5rem; width:100%;">
+                <elevenlabs-convai id="elWidget" variant="full"></elevenlabs-convai>
+                <button id="endBtn" class="ctrl-btn btn-stop" style="margin-top:0.5rem;">TERMINATE SESSION</button>
             </div>
         </section>
     </main>
 
-    <script type="module">
-        import { Conversation } from 'https://cdn.jsdelivr.net/npm/@11labs/client@0.2.0/dist/lib.modern.js';
-
+    <script>
         const API_KEY_INPUT    = document.getElementById('apiKey');
         const AGENT_ID_INPUT   = document.getElementById('agentId');
         const AGENT_TITLE_INPUT= document.getElementById('agentTitle');
@@ -643,16 +629,9 @@
         const RECONFIG_BTN     = document.getElementById('reconfigureBtn');
         const THEME_TOGGLE_BTN = document.getElementById('themeToggleBtn');
         const HEADER_TITLE     = document.getElementById('headerTitle');
-        const ORB              = document.getElementById('orb');
-        const ORB_CONTAINER    = document.getElementById('orbContainer');
-        const STATUS_TEXT      = document.getElementById('statusText');
-        const STATUS_DOT       = document.getElementById('statusDot');
-        const SESSION_CONTROLS = document.getElementById('sessionControls');
+        const WIDGET_WRAP      = document.getElementById('widgetWrap');
+        const EL_WIDGET        = document.getElementById('elWidget');
         const END_BTN          = document.getElementById('endBtn');
-        const VISUALIZER       = document.getElementById('visualizer');
-
-        let vizInterval = null;
-        let conversation = null;
 
         // Auto-fill from URL params
         const params = new URLSearchParams(window.location.search);
@@ -660,54 +639,12 @@
         if (params.has('apiKey'))  API_KEY_INPUT.value  = params.get('apiKey');
         if (params.has('title'))   AGENT_TITLE_INPUT.value = params.get('title');
 
-        // ── UI State Machine ────────────────────────────────────────────────────
-        function setState(state) {
-            ORB.className = 'orb';
-            STATUS_DOT.className = 'status-dot';
-            VISUALIZER.style.opacity = '0';
-            if (vizInterval) { clearInterval(vizInterval); vizInterval = null; }
-
-            switch (state) {
-                case 'CONNECTING':
-                    STATUS_TEXT.innerText = 'SYNCING...';
-                    ORB_CONTAINER.classList.remove('speaking-active');
-                    break;
-                case 'LISTENING':
-                    STATUS_TEXT.innerText = 'LISTENING';
-                    ORB.classList.add('listening');
-                    ORB_CONTAINER.classList.add('listening');
-                    ORB_CONTAINER.classList.remove('speaking-active');
-                    STATUS_DOT.classList.add('active-dot');
-                    break;
-                case 'SPEAKING':
-                    STATUS_TEXT.innerText = 'SPEAKING  —  tap orb to interrupt';
-                    ORB.classList.add('speaking');
-                    ORB_CONTAINER.classList.add('speaking-active');
-                    STATUS_DOT.classList.add('active-dot');
-                    VISUALIZER.style.opacity = '1';
-                    vizInterval = setInterval(() => {
-                        VISUALIZER.querySelectorAll('.bar').forEach(b => {
-                            b.style.height = `${Math.random() * 100}%`;
-                        });
-                    }, 100);
-                    break;
-                case 'ERROR':
-                    STATUS_TEXT.innerText = 'SYSTEM FAILURE';
-                    STATUS_DOT.style.background = 'var(--danger)';
-                    ORB_CONTAINER.classList.remove('speaking-active');
-                    break;
-                default:
-                    STATUS_TEXT.innerText = 'STANDBY';
-                    ORB_CONTAINER.classList.remove('speaking-active');
-            }
-        }
-
         THEME_TOGGLE_BTN.addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
             THEME_TOGGLE_BTN.innerText = document.body.classList.contains('light-mode') ? '☾' : '☀';
         });
 
-        // ── ElevenLabs SDK Session ──────────────────────────────────────────────
+        // ── Launch Session ──────────────────────────────────────────────────────
         LAUNCH_BTN.addEventListener('click', async () => {
             const apiKey     = API_KEY_INPUT.value.trim();
             const agentId    = AGENT_ID_INPUT.value.trim();
@@ -717,21 +654,8 @@
 
             LAUNCH_BTN.innerText = 'ESTABLISHING...';
 
-            // ① Pre-request mic permission during the user gesture.
-            //   This ensures the browser has already granted mic access before
-            //   the SDK's LiveKit WebRTC layer tries to open audio tracks.
-            //   Without this, WebRTC can fail silently and VAD/barge-in won't work.
             try {
-                const micTest = await navigator.mediaDevices.getUserMedia({ audio: true });
-                micTest.getTracks().forEach(t => t.stop()); // release immediately; SDK will re-open
-            } catch {
-                alert('Microphone access denied. Please allow mic and try again.');
-                LAUNCH_BTN.innerText = 'SYSTEM START';
-                return;
-            }
-
-            // ② Get signed URL
-            try {
+                // Get signed URL (keeps our API key client-side only for signing)
                 const res = await fetch(
                     `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
                     { headers: { 'xi-api-key': apiKey } }
@@ -739,34 +663,20 @@
                 if (!res.ok) throw new Error('AUTH_FAILED');
                 const { signed_url } = await res.json();
 
-                CONFIG_OVERLAY.classList.add('hidden');
-                SESSION_CONTROLS.style.display = 'flex';
+                // Update UI state
                 HEADER_TITLE.innerText = agentTitle;
                 document.title = `${agentTitle} | AI Voice Agent`;
-                setState('CONNECTING');
+                CONFIG_OVERLAY.classList.add('hidden');
+                WIDGET_WRAP.style.display = 'flex';
 
-                // ③ Start SDK session — SDK handles EVERYTHING:
-                //    mic, audio playback, VAD, and barge-in interruption natively.
-                conversation = await Conversation.startSession({
-                    signedUrl: signed_url,
-                    onConnect:    ()        => { console.log('[EL] connected'); setState('LISTENING'); },
-                    onDisconnect: ()        => { console.log('[EL] disconnected'); terminate(false); },
-                    onError:      (err)     => { console.error('[EL] error', err); setState('ERROR'); },
-                    // onModeChange is the ONLY hook needed for interruption.
-                    // ElevenLabs flips mode→'listening' the instant it detects barge-in.
-                    onModeChange: ({ mode }) => {
-                        console.log('[EL] mode:', mode);
-                        if (mode === 'speaking') setState('SPEAKING');
-                        else setState('LISTENING');
-                    }
-                });
-
-                console.log('[EL] session started', conversation);
+                // Hand off to the ElevenLabs widget — it handles EVERYTHING:
+                // mic, audio playback, VAD, barge-in, and interruption.
+                // This IS the same code that powers the ElevenLabs preview.
+                EL_WIDGET.setAttribute('signed-url', signed_url);
 
             } catch (err) {
-                console.error('[EL] session error:', err);
+                console.error(err);
                 alert('Failed to connect. Check API key and Agent ID.');
-                CONFIG_OVERLAY.classList.remove('hidden');
                 LAUNCH_BTN.innerText = 'SYSTEM START';
             }
         });
@@ -776,24 +686,18 @@
             LAUNCH_BTN.innerText = 'SYSTEM START';
         });
 
-        async function terminate(endSdk = true) {
-            if (vizInterval) { clearInterval(vizInterval); vizInterval = null; }
-            if (conversation && endSdk) {
-                try { await conversation.endSession(); } catch(e) {}
-            }
-            conversation = null;
-            setState('IDLE');
-            VISUALIZER.style.opacity = '0';
+        END_BTN.addEventListener('click', () => {
+            // Remove signed-url so the widget resets
+            EL_WIDGET.removeAttribute('signed-url');
+            EL_WIDGET.removeAttribute('agent-id');
+            WIDGET_WRAP.style.display = 'none';
             AGENT_ID_INPUT.value    = '';
             AGENT_TITLE_INPUT.value = '';
             HEADER_TITLE.innerText  = 'VOX';
             document.title = 'VOX | AI Voice Agent';
-            SESSION_CONTROLS.style.display = 'none';
             CONFIG_OVERLAY.classList.remove('hidden');
             LAUNCH_BTN.innerText = 'SYSTEM START';
-        }
-
-        END_BTN.addEventListener('click', () => terminate(true));
+        });
 
         // ── Canvas Particle Background ──────────────────────────────────────────
         const canvas = document.getElementById('bgCanvas');
