@@ -320,6 +320,25 @@
                 transform: scale(1.1);
             }
 
+            /* Tap to interrupt hint shown below orb during SPEAKING */
+            .interrupt-hint {
+                position: absolute;
+                bottom: -2.5rem;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 0.65rem;
+                letter-spacing: 2px;
+                color: var(--secondary);
+                opacity: 0;
+                transition: opacity 0.3s;
+                white-space: nowrap;
+                pointer-events: none;
+                text-transform: uppercase;
+            }
+            .orb-container.speaking-active .interrupt-hint {
+                opacity: 1;
+            }
+
             /* Pulse Rings */
             .pulse-ring {
                 position: absolute;
@@ -600,6 +619,7 @@
                             d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
                     </svg>
                 </div>
+                <span class="interrupt-hint">TAP TO INTERRUPT</span>
             </div>
             <div class="vox-status">
                 <span class="status-dot" id="statusDot"></span>
@@ -655,19 +675,23 @@
                 case 'READY':
                     STATUS_TEXT.innerText = 'INITIALIZED';
                     STATUS_DOT.classList.add('active-dot');
+                    ORB_CONTAINER.classList.remove('speaking-active');
                     break;
                 case 'CONNECTING':
                     STATUS_TEXT.innerText = 'SYNCING...';
+                    ORB_CONTAINER.classList.remove('speaking-active');
                     break;
                 case 'LISTENING':
                     STATUS_TEXT.innerText = 'LISTENING';
                     ORB.classList.add('listening');
                     ORB_CONTAINER.classList.add('listening');
+                    ORB_CONTAINER.classList.remove('speaking-active');
                     STATUS_DOT.classList.add('active-dot');
                     break;
                 case 'SPEAKING':
-                    STATUS_TEXT.innerText = 'VOX SPEAKING';
+                    STATUS_TEXT.innerText = 'SPEAKING  —  tap orb to interrupt';
                     ORB.classList.add('speaking');
+                    ORB_CONTAINER.classList.add('speaking-active');
                     STATUS_DOT.classList.add('active-dot');
                     VISUALIZER.style.opacity = '1';
                     animateVisualizer();
@@ -675,9 +699,11 @@
                 case 'ERROR':
                     STATUS_TEXT.innerText = 'SYSTEM FAILURE';
                     STATUS_DOT.style.background = 'var(--danger)';
+                    ORB_CONTAINER.classList.remove('speaking-active');
                     break;
                 default:
                     STATUS_TEXT.innerText = 'STANDBY';
+                    ORB_CONTAINER.classList.remove('speaking-active');
             }
         }
 
@@ -777,8 +803,10 @@
             socket.onerror = () => { setState('ERROR'); };
         }
 
-        // Shared helper — stop agent audio immediately (used by both server events and local VAD)
+        // Shared helper — stop agent audio immediately (used by server events, VAD, and ORB tap)
+        let lastInterruptTime = 0;
         function stopAgentAudio() {
+            lastInterruptTime = Date.now();
             audioQueue = [];
             if (currentAudioSource) {
                 try { currentAudioSource.stop(); } catch(e) {}
@@ -788,13 +816,27 @@
             setState('LISTENING');
         }
 
-        let analyser = null;
+        // ORB tap-to-interrupt: works 100% of the time, no audio stack involved
+        ORB.addEventListener('click', () => {
+            if (isPlaying) {
+                console.log('[ORB] Tap interrupt triggered');
+                stopAgentAudio();
+            }
+        });
+        ORB.addEventListener('touchend', (e) => {
+            if (isPlaying) { e.preventDefault(); stopAgentAudio(); }
+        }, { passive: false });
+
+        let analyser   = null;
+        let vadStream  = null;   // separate raw stream for VAD (no EC)
         let vadInterval = null;
-        const VAD_THRESHOLD = 0.01;  // RMS amplitude — tune up if too sensitive
-        const VAD_POLL_MS  = 33;     // ~30 checks/sec
+        const VAD_THRESHOLD = 0.008; // RMS — lower = more sensitive
+        const VAD_COOLDOWN  = 500;   // ms to ignore VAD after an interrupt (prevents re-trigger)
+        const VAD_POLL_MS   = 33;    // ~30 checks/sec
 
         async function initMic() {
             try {
+                // PRIMARY stream: with echo cancellation — sent to ElevenLabs
                 micStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
                         sampleRate: 16000, 
@@ -804,29 +846,41 @@
                         autoGainControl: true
                     } 
                 });
+
+                // VAD stream: EC OFF so user voice always registers even during agent playback
+                try {
+                    vadStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            channelCount: 1,
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false
+                        }
+                    });
+                    const vadSource = audioContext.createMediaStreamSource(vadStream);
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 512;
+                    vadSource.connect(analyser);
+
+                    const vadBuf = new Float32Array(analyser.fftSize);
+                    vadInterval = setInterval(() => {
+                        if (!isPlaying) return;  // only fire while agent is talking
+                        if (Date.now() - lastInterruptTime < VAD_COOLDOWN) return; // cooldown
+                        analyser.getFloatTimeDomainData(vadBuf);
+                        let sum = 0;
+                        for (let i = 0; i < vadBuf.length; i++) sum += vadBuf[i] * vadBuf[i];
+                        const rms = Math.sqrt(sum / vadBuf.length);
+                        if (rms > VAD_THRESHOLD) {
+                            console.log('[VAD] Interrupt — RMS:', rms.toFixed(4));
+                            stopAgentAudio();
+                        }
+                    }, VAD_POLL_MS);
+                } catch(vadErr) {
+                    console.warn('[VAD] Could not open raw stream — VAD disabled, use tap to interrupt:', vadErr);
+                }
+
                 // audioContext already created on user gesture in LAUNCH_BTN click
                 const source = audioContext.createMediaStreamSource(micStream);
-
-                // --- Local VAD: AnalyserNode monitors mic level in real-time ---
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = 512;
-                source.connect(analyser);
-
-                const vadBuf = new Float32Array(analyser.fftSize);
-                vadInterval = setInterval(() => {
-                    if (!isPlaying) return;  // only matters while agent is talking
-                    analyser.getFloatTimeDomainData(vadBuf);
-                    // Compute RMS (root-mean-square) energy of mic input
-                    let sum = 0;
-                    for (let i = 0; i < vadBuf.length; i++) sum += vadBuf[i] * vadBuf[i];
-                    const rms = Math.sqrt(sum / vadBuf.length);
-                    if (rms > VAD_THRESHOLD) {
-                        console.log('[VAD] User speaking during playback — interrupting. RMS:', rms.toFixed(4));
-                        stopAgentAudio();
-                    }
-                }, VAD_POLL_MS);
-                // ----------------------------------------------------------------
-
                 scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
                 scriptProcessor.onaudioprocess = (e) => {
                     if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -834,7 +888,6 @@
                     const pcm = convertFloat32ToInt16(input);
                     socket.send(JSON.stringify({ user_audio_chunk: b64encode(pcm) }));
                 };
-
                 source.connect(scriptProcessor);
                 scriptProcessor.connect(audioContext.destination);
                 setState('LISTENING');
@@ -900,6 +953,7 @@
             conversationStarted = false;
             if (vadInterval) { clearInterval(vadInterval); vadInterval = null; }
             analyser = null;
+            if (vadStream) { vadStream.getTracks().forEach(t => t.stop()); vadStream = null; }
             if (socket) { try { socket.close(); } catch(e) {} socket = null; }
             if (micStream) micStream.getTracks().forEach(t => t.stop());
             if (audioContext) { try { audioContext.close(); } catch(e) {} audioContext = null; }
