@@ -753,18 +753,16 @@
 
             socket.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
+
+                // Log all messages for debugging — open browser console to see
+                if (msg.type !== 'audio') console.log('[EL WS]', msg.type, msg);
+
                 if (msg.type === 'audio' && msg.audio_event && msg.audio_event.audio_base_64) {
                     queueAudio(msg.audio_event.audio_base_64);
                 }
-                else if (msg.type === 'interruption' || msg.type === 'clear') {
-                    // User interrupted the agent — stop all queued audio immediately
-                    audioQueue = [];
-                    if (currentAudioSource) {
-                        try { currentAudioSource.stop(); } catch(e) {}
-                        currentAudioSource = null;
-                    }
-                    isPlaying = false;
-                    setState('LISTENING');
+                else if (msg.type === 'interruption' || msg.type === 'clear' ||
+                         msg.type === 'user_interruption' || msg.type === 'agent_response_correction') {
+                    stopAgentAudio();
                 }
                 else if (msg.type === 'ping') {
                     if (msg.ping_event && msg.ping_event.event_id) {
@@ -779,6 +777,22 @@
             socket.onerror = () => { setState('ERROR'); };
         }
 
+        // Shared helper — stop agent audio immediately (used by both server events and local VAD)
+        function stopAgentAudio() {
+            audioQueue = [];
+            if (currentAudioSource) {
+                try { currentAudioSource.stop(); } catch(e) {}
+                currentAudioSource = null;
+            }
+            isPlaying = false;
+            setState('LISTENING');
+        }
+
+        let analyser = null;
+        let vadInterval = null;
+        const VAD_THRESHOLD = 0.01;  // RMS amplitude — tune up if too sensitive
+        const VAD_POLL_MS  = 33;     // ~30 checks/sec
+
         async function initMic() {
             try {
                 micStream = await navigator.mediaDevices.getUserMedia({ 
@@ -792,8 +806,28 @@
                 });
                 // audioContext already created on user gesture in LAUNCH_BTN click
                 const source = audioContext.createMediaStreamSource(micStream);
-                scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
+                // --- Local VAD: AnalyserNode monitors mic level in real-time ---
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                source.connect(analyser);
+
+                const vadBuf = new Float32Array(analyser.fftSize);
+                vadInterval = setInterval(() => {
+                    if (!isPlaying) return;  // only matters while agent is talking
+                    analyser.getFloatTimeDomainData(vadBuf);
+                    // Compute RMS (root-mean-square) energy of mic input
+                    let sum = 0;
+                    for (let i = 0; i < vadBuf.length; i++) sum += vadBuf[i] * vadBuf[i];
+                    const rms = Math.sqrt(sum / vadBuf.length);
+                    if (rms > VAD_THRESHOLD) {
+                        console.log('[VAD] User speaking during playback — interrupting. RMS:', rms.toFixed(4));
+                        stopAgentAudio();
+                    }
+                }, VAD_POLL_MS);
+                // ----------------------------------------------------------------
+
+                scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
                 scriptProcessor.onaudioprocess = (e) => {
                     if (!socket || socket.readyState !== WebSocket.OPEN) return;
                     const input = e.inputBuffer.getChannelData(0);
@@ -864,6 +898,8 @@
 
         function terminate() {
             conversationStarted = false;
+            if (vadInterval) { clearInterval(vadInterval); vadInterval = null; }
+            analyser = null;
             if (socket) { try { socket.close(); } catch(e) {} socket = null; }
             if (micStream) micStream.getTracks().forEach(t => t.stop());
             if (audioContext) { try { audioContext.close(); } catch(e) {} audioContext = null; }
@@ -878,7 +914,7 @@
             AGENT_ID_INPUT.value = '';
             AGENT_TITLE_INPUT.value = '';
             HEADER_TITLE.innerText = 'VOX';
-            document.title = 'VOX | Universal AI Voice Interface';
+            document.title = 'VOX | AI Voice Agent';
 
             // Re-show config overlay
             SESSION_CONTROLS.style.display = 'none';
